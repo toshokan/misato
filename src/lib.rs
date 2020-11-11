@@ -36,7 +36,7 @@ pub enum MajorProtoVersion {
     V1,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct HeaderFlags(u8);
 #[derive(Debug, PartialEq, Eq)]
 pub struct Serial(u32);
@@ -127,7 +127,17 @@ impl HeaderFlags {
 
     #[inline]
     pub fn allow_interactive_authorization(&self) -> bool {
-        self.check_flag(3)
+        self.check_flag(4)
+    }
+}
+
+impl std::fmt::Debug for HeaderFlags {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+	fmt.debug_struct("HeaderFlags")
+	    .field("no_reply_expected", &self.no_reply_expected())
+	    .field("no_auto_start", &self.no_auto_start())
+	    .field("allow_interactive_authorization", &self.allow_interactive_authorization())
+	    .finish()
     }
 }
 
