@@ -39,31 +39,49 @@ pub enum MajorProtoVersion {
 
 #[derive(PartialEq, Eq)]
 pub struct HeaderFlags(u8);
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Serial(u32);
 
+impl Serial {
+    pub fn as_u32(&self) -> u32 {
+	self.0
+    }
+}
+
 #[derive(Debug, Default, PartialEq)]
 pub struct HeaderFields<'i> {
-    path: Option<&'i str>,
-    interface: Option<&'i str>,
-    member: Option<&'i str>,
-    error_name: Option<&'i str>,
-    reply_serial: Option<u32>,
-    destination: Option<&'i str>,
-    sender: Option<&'i str>,
-    signature: Option<Vec<Type>>,
-    unix_fds: Option<u32>
+    pub path: Option<&'i str>,
+    pub interface: Option<&'i str>,
+    pub member: Option<&'i str>,
+    pub error_name: Option<&'i str>,
+    pub reply_serial: Option<u32>,
+    pub destination: Option<&'i str>,
+    pub sender: Option<&'i str>,
+    pub signature: Option<Vec<Type>>,
+    pub unix_fds: Option<u32>
 }
 
 #[derive(Debug, PartialEq)]
 pub struct MessageHeader<'i> {
-    endianness: Endian,
-    kind: MessageType,
-    flags: HeaderFlags,
-    proto_version: MajorProtoVersion,
-    len: u32,
-    serial: Serial,
-    fields: HeaderFields<'i>,
+    pub endianness: Endian,
+    pub kind: MessageType,
+    pub flags: HeaderFlags,
+    pub proto_version: MajorProtoVersion,
+    pub len: u32,
+    pub serial: Serial,
+    pub fields: HeaderFields<'i>,
+}
+
+pub struct Message<'i> {
+    header: MessageHeader<'i>,
+    body: Vec<Data<'i>>
+}
+
+impl<'i> Message<'i> {
+    pub fn into_parts(self) -> (MessageHeader<'i>, Vec<Data<'i>>) {
+	(self.header, self.body)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -105,12 +123,16 @@ pub enum Data<'i> {
     Signature(Vec<Type>),
     Array(Vec<Data<'i>>),
     Struct(Vec<Data<'i>>),
-    Variant,
+    Variant(Type, Box<Data<'i>>),
     DictEntry(Box<Data<'i>>, Box<Data<'i>>),
     UnixFd(u32),
 }
 
 impl HeaderFlags {
+    pub fn as_u8(&self) -> u8 {
+	self.0
+    }
+    
     #[inline]
     fn check_flag(&self, flag: u8) -> bool {
         self.0 & flag != 0
@@ -204,17 +226,19 @@ impl<'i> Parser<'i> {
 	    let (r, data) = self.parse_variant(r)?;
 	    input = r;
 
-	    match (tag, data) {
-		(1, Data::ObjectPath(s)) => fields.path = Some(s),
-		(2, Data::String(s)) => fields.interface = Some(s),
-		(3, Data::String(s)) => fields.member = Some(s),
-		(4, Data::String(s)) => fields.error_name = Some(s),
-		(5, Data::UInt32(n)) => fields.reply_serial = Some(n),
-		(6, Data::String(s)) => fields.destination = Some(s),
-		(7, Data::String(s)) => fields.sender = Some(s),
-		(8, Data::Signature(tys)) => fields.signature = Some(tys),
-		(9, Data::UInt32(n)) => fields.unix_fds = Some(n),
-		_ => continue,
+	    if let Data::Variant(_, data) = data {
+		match (tag, *data) {
+		    (1, Data::ObjectPath(s)) => fields.path = Some(s),
+		    (2, Data::String(s)) => fields.interface = Some(s),
+		    (3, Data::String(s)) => fields.member = Some(s),
+		    (4, Data::String(s)) => fields.error_name = Some(s),
+		    (5, Data::UInt32(n)) => fields.reply_serial = Some(n),
+		    (6, Data::String(s)) => fields.destination = Some(s),
+		    (7, Data::String(s)) => fields.sender = Some(s),
+		    (8, Data::Signature(tys)) => fields.signature = Some(tys),
+		    (9, Data::UInt32(n)) => fields.unix_fds = Some(n),
+		    _ => continue,
+		}
 	    }
 	}
 
@@ -294,7 +318,7 @@ impl<'i> Parser<'i> {
 
         let (input, len) = self.parse_uint32(input)?;
 	let (input, (bytes, _)) = tuple((
-	    take(len-1),
+	    take(len),
 	    char('\0')
 	))(input)?;
 	let str = unsafe {
@@ -414,7 +438,8 @@ impl<'i> Parser<'i> {
 
     fn parse_variant(&self, input: &'i [u8]) -> IResult<&'i [u8], Data<'i>> {
 	let (input, ty) = self.parse_ty(input)?;
-	self.parse_data(ty, input)
+	let cty = ty.clone();
+	map(move |i| self.parse_data(ty.clone(), i), move |d| Data::Variant(cty.clone(), Box::new(d)))(input)
     }
 }
 
@@ -446,7 +471,7 @@ mod test {
     fn parses_strings() {
 	use Type::*;
 	
-	let input = "\u{4}\0\0\0abc\0";
+	let input = "\u{3}\0\0\0abc\0";
 	let parser = Parser::new(&input.as_bytes());
 	let (_, x) = parser.parse_string(&input.as_bytes()).unwrap();
 	assert_eq!(x, "abc");
@@ -473,12 +498,9 @@ mod test {
 	}
     }
 
-    #[test]
-    fn parses_message_headers() {
-	let input = "l\u{1}\u{1}\u{1}\u{0}\u{0}\u{0}\u{0}\u{7}\u{0}\u{0}\u{0}\u{1}\u{0}\u{0}\u{0}\u{1}o\0\0\u{4}\u{0}\u{0}\u{0}abc\0";
-	let mut parser = Parser::new(&input.as_bytes());
-	let (_, output) = parser.parse_header(input.as_bytes()).unwrap();
-	assert_eq!(output, MessageHeader {
+    fn make_header() -> (&'static str, MessageHeader<'static>) {
+	let input = "l\u{1}\u{1}\u{1}\u{0}\u{0}\u{0}\u{0}\u{7}\u{0}\u{0}\u{0}\u{1}\u{0}\u{0}\u{0}\u{1}o\0\0\u{3}\u{0}\u{0}\u{0}abc\0\0\0\0\0";
+	let exp = MessageHeader {
 	    endianness: Endian::Little,
 	    kind: MessageType::MethodCall,
 	    flags: HeaderFlags(0x01),
@@ -489,6 +511,30 @@ mod test {
 		path: Some("abc"),
 		..Default::default()
 	    }
-	})
+	};
+	(input, exp)
+    }
+
+    #[test]
+    fn parses_message_headers() {
+	let (input, exp) = make_header();
+	let mut parser = Parser::new(&input.as_bytes());
+	let (_, output) = parser.parse_header(input.as_bytes()).unwrap();
+	assert_eq!(output, exp);
+    }
+
+    #[test]
+    fn output_matches_input() {
+	let (input, _) = make_header();
+	let mut parser = Parser::new(&input.as_bytes());
+	let (_, output) = parser.parse_header(input.as_bytes()).unwrap();
+	let msg = Message {
+	    header: output,
+	    body: vec![]
+	};
+	let mut buf = vec![];
+
+	crate::proto::encode::write(&mut buf, msg).unwrap();
+	assert_eq!(input.as_bytes(), &buf);
     }
 }
