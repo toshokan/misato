@@ -37,10 +37,10 @@ pub enum MajorProtoVersion {
 }
 
 #[derive(PartialEq, Eq)]
-pub struct HeaderFlags(u8);
+pub struct HeaderFlags(pub u8);
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Serial(u32);
+pub struct Serial(pub u32);
 
 impl Serial {
     pub fn as_u32(&self) -> u32 {

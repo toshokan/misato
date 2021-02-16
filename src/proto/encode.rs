@@ -42,7 +42,7 @@ impl std::fmt::Debug for OutputBuf {
 
 impl OutputBuf {
     fn new() -> Self {
-        let buf = Vec::with_capacity(4096);
+        let buf = Vec::new();
         Self { buf }
     }
 
@@ -265,8 +265,6 @@ pub fn write(os: impl Write, message: Message<'_>) -> std::io::Result<()> {
     os.header_buf
         .write_header(header, os.body_buf.buf.len() as u32);
     os.header_buf.align_at(8);
-
-    dbg!(&os);
 
     os.inner.write_all(&os.header_buf.buf)?;
     os.inner.write_all(&os.body_buf.buf)?;

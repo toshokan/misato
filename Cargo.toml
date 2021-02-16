@@ -9,3 +9,13 @@ edition = "2018"
 [dependencies]
 libc = "^0.2"
 nom = "^6"
+
+[profile.bench]
+debug = true
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["html_reports"] }
+
+[[bench]]
+name = "parses_own_output"
+harness = false
