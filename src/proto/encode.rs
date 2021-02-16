@@ -122,15 +122,14 @@ impl OutputBuf {
         )
     }
 
-    impl_numeric_write! {
-    (i16, write_i16, 2);
-    (u16, write_u16, 2);
-    (i32, write_i32, 4);
-    (u32, write_u32, 4);
-    (i64, write_i64, 8);
-    (u64, write_u64, 8);
-    (f64, write_f64, 8)
-    }
+    impl_numeric_write!((i16, write_i16, 2);
+            (u16, write_u16, 2);
+            (i32, write_i32, 4);
+            (u32, write_u32, 4);
+            (i64, write_i64, 8);
+            (u64, write_u64, 8);
+            (f64, write_f64, 8)
+    );
 
     fn write_str(&mut self, s: &str) {
         let len: u32 = s.len() as u32;
@@ -182,10 +181,10 @@ impl OutputBuf {
             }
             Variant => self.write_byte(b'v'),
             DictEntry(k, v) => {
-                self.write_byte(b'(');
+                self.write_byte(b'{');
                 self.write_ty(k);
                 self.write_ty(v);
-                self.write_byte(b')');
+                self.write_byte(b'}');
             }
             UnixFd => self.write_byte(b'h'),
         }
