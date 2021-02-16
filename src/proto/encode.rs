@@ -9,10 +9,10 @@ struct BufOutputStream<W> {
 
 impl<W> std::fmt::Debug for BufOutputStream<W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-	f.debug_struct("BufOutputStream")
-	    .field("header", &self.header_buf)
-	    .field("body", &self.body_buf)
-	    .finish()
+        f.debug_struct("BufOutputStream")
+            .field("header", &self.header_buf)
+            .field("body", &self.body_buf)
+            .finish()
     }
 }
 
@@ -33,10 +33,10 @@ struct OutputBuf {
 
 impl std::fmt::Debug for OutputBuf {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-	f.debug_struct("OutputBuf")
-	    .field("len", &self.buf.len())
-	    .field("data", &self.buf)
-	    .finish()
+        f.debug_struct("OutputBuf")
+            .field("len", &self.buf.len())
+            .field("data", &self.buf)
+            .finish()
     }
 }
 
@@ -64,17 +64,17 @@ impl OutputBuf {
             }
         }
 
-	self.write_byte(endianness_as_byte(header.endianness));
-	self.write_byte(kind_as_byte(header.kind));
-	self.write_byte(header.flags.as_u8());
-	self.write_byte(1);
-	self.write_u32(body_len);
-	self.write_u32(header.serial.as_u32());
-	self.write_header_fields(&header.fields);
+        self.write_byte(endianness_as_byte(header.endianness));
+        self.write_byte(kind_as_byte(header.kind));
+        self.write_byte(header.flags.as_u8());
+        self.write_byte(1);
+        self.write_u32(body_len);
+        self.write_u32(header.serial.as_u32());
+        self.write_header_fields(&header.fields);
     }
 
     fn write_header_fields(&mut self, fields: &HeaderFields<'_>) {
-	macro_rules! count_fields {
+        macro_rules! count_fields {
 	    ($($f: expr),*) => {{
 		let mut count: u32 = 0;
 		$(
@@ -85,7 +85,7 @@ impl OutputBuf {
 		count
 	    }}
 	}
-	macro_rules! write_fields {
+        macro_rules! write_fields {
 	    ($(($f: expr, $tag: expr, $ty: expr, $handler_fn: ident));*) => {{
 		$(
 		    if let Some(x) = $f {
@@ -96,40 +96,40 @@ impl OutputBuf {
 		)*
 	    }}
 	}
-	let count = count_fields!(
-	    fields.path,
-	    fields.interface,
-	    fields.member,
-	    fields.error_name,
-	    fields.reply_serial,
-	    fields.destination,
-	    fields.sender,
-	    fields.signature,
-	    fields.unix_fds
-	);
-	self.write_u32(count);
-	
-	write_fields!(
-	    (fields.path, 1, Type::ObjectPath, write_str);
-	    (fields.interface, 2, Type::String, write_str);
-	    (fields.member, 3, Type::String, write_str);
-	    (fields.error_name, 4, Type::String, write_str);
-	    (fields.reply_serial, 5, Type::UInt32, write_u32);
-	    (fields.destination, 6, Type::String, write_str);
-	    (fields.sender, 7, Type::String, write_str);
-	    (&fields.signature, 8, Type::Signature, write_signature);
-	    (fields.unix_fds, 9, Type::UInt32, write_u32)
-	)
+        let count = count_fields!(
+            fields.path,
+            fields.interface,
+            fields.member,
+            fields.error_name,
+            fields.reply_serial,
+            fields.destination,
+            fields.sender,
+            fields.signature,
+            fields.unix_fds
+        );
+        self.write_u32(count);
+
+        write_fields!(
+            (fields.path, 1, Type::ObjectPath, write_str);
+            (fields.interface, 2, Type::String, write_str);
+            (fields.member, 3, Type::String, write_str);
+            (fields.error_name, 4, Type::String, write_str);
+            (fields.reply_serial, 5, Type::UInt32, write_u32);
+            (fields.destination, 6, Type::String, write_str);
+            (fields.sender, 7, Type::String, write_str);
+            (&fields.signature, 8, Type::Signature, write_signature);
+            (fields.unix_fds, 9, Type::UInt32, write_u32)
+        )
     }
 
     impl_numeric_write! {
-	(i16, write_i16, 2);
-	(u16, write_u16, 2);
-	(i32, write_i32, 4);
-	(u32, write_u32, 4);
-	(i64, write_i64, 8);
-	(u64, write_u64, 8);
-	(f64, write_f64, 8)
+    (i16, write_i16, 2);
+    (u16, write_u16, 2);
+    (i32, write_i32, 4);
+    (u32, write_u32, 4);
+    (i64, write_i64, 8);
+    (u64, write_u64, 8);
+    (f64, write_f64, 8)
     }
 
     fn write_str(&mut self, s: &str) {
@@ -177,7 +177,7 @@ impl OutputBuf {
             }
             Struct(ts) => {
                 self.write_byte(b'(');
-		self.write_signature(ts);
+                self.write_signature(ts);
                 self.write_byte(b')');
             }
             Variant => self.write_byte(b'v'),
@@ -192,9 +192,9 @@ impl OutputBuf {
     }
 
     fn write_signature(&mut self, tys: &[Type]) {
-	for ty in tys {
-	    self.write_ty(ty);
-	}
+        for ty in tys {
+            self.write_ty(ty);
+        }
     }
 
     pub fn write_data(&mut self, data: &Data<'_>) {
@@ -258,12 +258,13 @@ pub fn write(os: impl Write, message: Message<'_>) -> std::io::Result<()> {
     let mut os = BufOutputStream::new(os);
 
     let (header, body) = message.into_parts();
-    
+
     for data in body {
-	os.body_buf.write_data(&data);
+        os.body_buf.write_data(&data);
     }
-    
-    os.header_buf.write_header(header, os.body_buf.buf.len() as u32);
+
+    os.header_buf
+        .write_header(header, os.body_buf.buf.len() as u32);
     os.header_buf.align_at(8);
 
     dbg!(&os);

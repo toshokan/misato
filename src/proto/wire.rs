@@ -6,7 +6,6 @@ use nom::{
     number::Endianness,
 };
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Endian {
     Big,
@@ -45,7 +44,7 @@ pub struct Serial(u32);
 
 impl Serial {
     pub fn as_u32(&self) -> u32 {
-	self.0
+        self.0
     }
 }
 
@@ -59,7 +58,7 @@ pub struct HeaderFields<'i> {
     pub destination: Option<&'i str>,
     pub sender: Option<&'i str>,
     pub signature: Option<Vec<Type>>,
-    pub unix_fds: Option<u32>
+    pub unix_fds: Option<u32>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -75,12 +74,12 @@ pub struct MessageHeader<'i> {
 
 pub struct Message<'i> {
     pub header: MessageHeader<'i>,
-    pub body: Vec<Data<'i>>
+    pub body: Vec<Data<'i>>,
 }
 
 impl<'i> Message<'i> {
     pub fn into_parts(self) -> (MessageHeader<'i>, Vec<Data<'i>>) {
-	(self.header, self.body)
+        (self.header, self.body)
     }
 }
 
@@ -130,9 +129,9 @@ pub enum Data<'i> {
 
 impl HeaderFlags {
     pub fn as_u8(&self) -> u8 {
-	self.0
+        self.0
     }
-    
+
     #[inline]
     fn check_flag(&self, flag: u8) -> bool {
         self.0 & flag != 0
@@ -156,11 +155,14 @@ impl HeaderFlags {
 
 impl std::fmt::Debug for HeaderFlags {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-	fmt.debug_struct("HeaderFlags")
-	    .field("no_reply_expected", &self.no_reply_expected())
-	    .field("no_auto_start", &self.no_auto_start())
-	    .field("allow_interactive_authorization", &self.allow_interactive_authorization())
-	    .finish()
+        fmt.debug_struct("HeaderFlags")
+            .field("no_reply_expected", &self.no_reply_expected())
+            .field("no_auto_start", &self.no_auto_start())
+            .field(
+                "allow_interactive_authorization",
+                &self.allow_interactive_authorization(),
+            )
+            .finish()
     }
 }
 
@@ -191,58 +193,58 @@ impl<'i> Parser<'i> {
     }
 
     pub fn parse_header(&mut self, input: &'i [u8]) -> IResult<&'i [u8], MessageHeader> {
-	use nom::sequence::tuple;
+        use nom::sequence::tuple;
 
-	let (input, endianness) = self.parse_endianness(input)?;
+        let (input, endianness) = self.parse_endianness(input)?;
 
-	let (input, (kind, flags, proto_version, len, serial, fields)) = tuple((
-	    |i| self.parse_message_type(i),
-	    |i| self.parse_header_flags(i),
-	    |i| self.parse_major_proto_version(i),
-	    |i| self.parse_uint32(i),
-	    |i| self.parse_serial(i),
-	    |i| self.parse_header_fields(i)
-	))(input)?;
+        let (input, (kind, flags, proto_version, len, serial, fields)) = tuple((
+            |i| self.parse_message_type(i),
+            |i| self.parse_header_flags(i),
+            |i| self.parse_major_proto_version(i),
+            |i| self.parse_uint32(i),
+            |i| self.parse_serial(i),
+            |i| self.parse_header_fields(i),
+        ))(input)?;
 
-	let hdr = MessageHeader {
-	    endianness,
-	    kind,
-	    flags,
-	    proto_version,
-	    len,
-	    serial,
-	    fields
-	};
-	
-	Ok((input, hdr))
+        let hdr = MessageHeader {
+            endianness,
+            kind,
+            flags,
+            proto_version,
+            len,
+            serial,
+            fields,
+        };
+
+        Ok((input, hdr))
     }
 
-    pub fn parse_header_fields(&self, input: &'i [u8]) -> IResult<&'i [u8], HeaderFields<'i>>{
-	let (mut input, count) = self.parse_uint32(input)?;
-	let mut fields = HeaderFields::default();
+    pub fn parse_header_fields(&self, input: &'i [u8]) -> IResult<&'i [u8], HeaderFields<'i>> {
+        let (mut input, count) = self.parse_uint32(input)?;
+        let mut fields = HeaderFields::default();
 
-	for _ in 0..count {
-	    let (r, tag) = self.parse_byte(input)?;
-	    let (r, data) = self.parse_variant(r)?;
-	    input = r;
+        for _ in 0..count {
+            let (r, tag) = self.parse_byte(input)?;
+            let (r, data) = self.parse_variant(r)?;
+            input = r;
 
-	    if let Data::Variant(_, data) = data {
-		match (tag, *data) {
-		    (1, Data::ObjectPath(s)) => fields.path = Some(s),
-		    (2, Data::String(s)) => fields.interface = Some(s),
-		    (3, Data::String(s)) => fields.member = Some(s),
-		    (4, Data::String(s)) => fields.error_name = Some(s),
-		    (5, Data::UInt32(n)) => fields.reply_serial = Some(n),
-		    (6, Data::String(s)) => fields.destination = Some(s),
-		    (7, Data::String(s)) => fields.sender = Some(s),
-		    (8, Data::Signature(tys)) => fields.signature = Some(tys),
-		    (9, Data::UInt32(n)) => fields.unix_fds = Some(n),
-		    _ => continue,
-		}
-	    }
-	}
+            if let Data::Variant(_, data) = data {
+                match (tag, *data) {
+                    (1, Data::ObjectPath(s)) => fields.path = Some(s),
+                    (2, Data::String(s)) => fields.interface = Some(s),
+                    (3, Data::String(s)) => fields.member = Some(s),
+                    (4, Data::String(s)) => fields.error_name = Some(s),
+                    (5, Data::UInt32(n)) => fields.reply_serial = Some(n),
+                    (6, Data::String(s)) => fields.destination = Some(s),
+                    (7, Data::String(s)) => fields.sender = Some(s),
+                    (8, Data::Signature(tys)) => fields.signature = Some(tys),
+                    (9, Data::UInt32(n)) => fields.unix_fds = Some(n),
+                    _ => continue,
+                }
+            }
+        }
 
-	Ok((input, fields))
+        Ok((input, fields))
     }
 
     pub fn parse_data(&self, ty: Type, input: &'i [u8]) -> IResult<&'i [u8], Data<'i>> {
@@ -267,7 +269,7 @@ impl<'i> Parser<'i> {
             Type::Array(ty) => self.parse_array(*ty, input),
             Type::Struct(tys) => self.parse_struct(tys, input),
             Type::Variant => self.parse_variant(input),
-            Type::DictEntry(k, v) => self.parse_struct(vec![*k,*v], input),
+            Type::DictEntry(k, v) => self.parse_struct(vec![*k, *v], input),
             Type::UnixFd => data_parser!(Data::UnixFd, Self::parse_uint32)(input),
             _ => unimplemented!(),
         }
@@ -313,18 +315,13 @@ impl<'i> Parser<'i> {
     ];
 
     pub fn parse_string(&self, input: &'i [u8]) -> IResult<&'i [u8], &'i str> {
-	use nom::sequence::tuple;
-	use nom::character::complete::char;
+        use nom::character::complete::char;
+        use nom::sequence::tuple;
 
         let (input, len) = self.parse_uint32(input)?;
-	let (input, (bytes, _)) = tuple((
-	    take(len),
-	    char('\0')
-	))(input)?;
-	let str = unsafe {
-	    std::str::from_utf8_unchecked(bytes)
-	};
-	Ok((input, str))
+        let (input, (bytes, _)) = tuple((take(len), char('\0')))(input)?;
+        let str = unsafe { std::str::from_utf8_unchecked(bytes) };
+        Ok((input, str))
     }
 
     pub fn parse_object_path(&self, input: &'i [u8]) -> IResult<&'i [u8], &'i str> {
@@ -332,10 +329,10 @@ impl<'i> Parser<'i> {
     }
 
     pub fn parse_ty(&self, input: &'i [u8]) -> IResult<&'i [u8], Type> {
-	use nom::sequence::{delimited, tuple};
-	use nom::multi::many1;
-	
-	macro_rules! tagged_type {
+        use nom::multi::many1;
+        use nom::sequence::{delimited, tuple};
+
+        macro_rules! tagged_type {
 	    ($(($tag:expr, $ty:expr)),*) => {
 		alt((
 		    $(
@@ -345,42 +342,47 @@ impl<'i> Parser<'i> {
 	    }
 	}
 
-	alt((
-	    map(tuple((tag("a"), |i| self.parse_ty(i))), |(_, ty)| Type::Array(Box::new(ty))),
-	    map(delimited(tag("("), many1(|i| self.parse_ty(i)), tag(")")), |tys| Type::Struct(tys)),
-	    tagged_type! [
-		("y", Type::Byte),
-		("b", Type::Boolean),
-		("n", Type::Int16),
-		("q", Type::UInt16),
-		("i", Type::Int32),
-		("u", Type::UInt32),
-		("x", Type::Int64),
-		("t", Type::UInt64),
-		("d", Type::Double),
-		("s", Type::String),
-		("o", Type::ObjectPath),
-		("g", Type::Signature),
-		("v", Type::Variant)
-	    ]
-	))(input)
+        alt((
+            map(tuple((tag("a"), |i| self.parse_ty(i))), |(_, ty)| {
+                Type::Array(Box::new(ty))
+            }),
+            map(
+                delimited(tag("("), many1(|i| self.parse_ty(i)), tag(")")),
+                |tys| Type::Struct(tys),
+            ),
+            tagged_type![
+                ("y", Type::Byte),
+                ("b", Type::Boolean),
+                ("n", Type::Int16),
+                ("q", Type::UInt16),
+                ("i", Type::Int32),
+                ("u", Type::UInt32),
+                ("x", Type::Int64),
+                ("t", Type::UInt64),
+                ("d", Type::Double),
+                ("s", Type::String),
+                ("o", Type::ObjectPath),
+                ("g", Type::Signature),
+                ("v", Type::Variant)
+            ],
+        ))(input)
     }
 
     pub fn parse_signature(&self, input: &'i [u8]) -> IResult<&'i [u8], Vec<Type>> {
-	use nom::combinator::all_consuming;
-	use nom::multi::many0;
-	
+        use nom::combinator::all_consuming;
+        use nom::multi::many0;
+
         let (input, len) = self.parse_byte(input)?;
-	let (input, bytes) = take(len)(input)?;
-	let (_, signature) = all_consuming(many0(|i| self.parse_ty(i)))(bytes)?;
-	
-	Ok((input, signature))
+        let (input, bytes) = take(len)(input)?;
+        let (_, signature) = all_consuming(many0(|i| self.parse_ty(i)))(bytes)?;
+
+        Ok((input, signature))
     }
 
     pub fn parse_array(&self, ty: Type, input: &'i [u8]) -> IResult<&'i [u8], Data<'i>> {
         use nom::multi::many_m_n;
 
-	let parselet = |i| self.parse_data(ty.clone(), i);
+        let parselet = |i| self.parse_data(ty.clone(), i);
 
         let (input, len) = self.parse_uint32(input)?;
         let len = len as usize;
@@ -388,16 +390,16 @@ impl<'i> Parser<'i> {
     }
 
     pub fn parse_struct(&self, tys: Vec<Type>, input: &'i [u8]) -> IResult<&'i [u8], Data<'i>> {
-	let (mut input, _) = self.align_at(input, 8)?;
-	
-	let mut fields = vec![];
-	for ty in tys {
-	    let (r, field) = self.parse_data(ty, input)?;
-	    input = r;
-	    fields.push(field)
-	}
-	
-	Ok((input, Data::Struct(fields)))
+        let (mut input, _) = self.align_at(input, 8)?;
+
+        let mut fields = vec![];
+        for ty in tys {
+            let (r, field) = self.parse_data(ty, input)?;
+            input = r;
+            fields.push(field)
+        }
+
+        Ok((input, Data::Struct(fields)))
     }
 
     pub fn parse_endianness(&mut self, input: &'i [u8]) -> IResult<&'i [u8], Endian> {
@@ -429,17 +431,20 @@ impl<'i> Parser<'i> {
     }
 
     fn parse_major_proto_version(&self, i: &'i [u8]) -> IResult<&'i [u8], MajorProtoVersion> {
-	map(tag("\u{1}"), |_| MajorProtoVersion::V1)(i)
+        map(tag("\u{1}"), |_| MajorProtoVersion::V1)(i)
     }
 
     fn parse_serial(&self, input: &'i [u8]) -> IResult<&'i [u8], Serial> {
-	map(|i| self.parse_uint32(i), |s| Serial(s))(input)
+        map(|i| self.parse_uint32(i), |s| Serial(s))(input)
     }
 
     fn parse_variant(&self, input: &'i [u8]) -> IResult<&'i [u8], Data<'i>> {
-	let (input, ty) = self.parse_ty(input)?;
-	let cty = ty.clone();
-	map(move |i| self.parse_data(ty.clone(), i), move |d| Data::Variant(cty.clone(), Box::new(d)))(input)
+        let (input, ty) = self.parse_ty(input)?;
+        let cty = ty.clone();
+        map(
+            move |i| self.parse_data(ty.clone(), i),
+            move |d| Data::Variant(cty.clone(), Box::new(d)),
+        )(input)
     }
 }
 
@@ -449,88 +454,99 @@ mod test {
 
     #[test]
     fn parses_signatures() {
-	use Type::*;
-	
-	let input = "\u{b}yyyyuua(yv)";
-	let parser = Parser::new(&input.as_bytes());
-	let (_, x) = parser.parse_signature(&input.as_bytes()).unwrap();
-	assert_eq!(x, vec![Byte, Byte, Byte, Byte, UInt32, UInt32, Array(Box::new(Struct(vec![Byte, Variant]))) ]);
+        use Type::*;
+
+        let input = "\u{b}yyyyuua(yv)";
+        let parser = Parser::new(&input.as_bytes());
+        let (_, x) = parser.parse_signature(&input.as_bytes()).unwrap();
+        assert_eq!(
+            x,
+            vec![
+                Byte,
+                Byte,
+                Byte,
+                Byte,
+                UInt32,
+                UInt32,
+                Array(Box::new(Struct(vec![Byte, Variant])))
+            ]
+        );
     }
 
     #[test]
     fn parses_complex_arrays() {
-	use Type::*;
-	
-	let input = "\u{3}aay";
-	let parser = Parser::new(&input.as_bytes());
-	let (_, x) = parser.parse_signature(&input.as_bytes()).unwrap();
-	assert_eq!(x, vec![Array(Box::new(Array(Box::new(Byte))))]);
+        use Type::*;
+
+        let input = "\u{3}aay";
+        let parser = Parser::new(&input.as_bytes());
+        let (_, x) = parser.parse_signature(&input.as_bytes()).unwrap();
+        assert_eq!(x, vec![Array(Box::new(Array(Box::new(Byte))))]);
     }
 
     #[test]
     fn parses_strings() {
-	let input = "\u{3}\0\0\0abc\0";
-	let parser = Parser::new(&input.as_bytes());
-	let (_, x) = parser.parse_string(&input.as_bytes()).unwrap();
-	assert_eq!(x, "abc");
+        let input = "\u{3}\0\0\0abc\0";
+        let parser = Parser::new(&input.as_bytes());
+        let (_, x) = parser.parse_string(&input.as_bytes()).unwrap();
+        assert_eq!(x, "abc");
     }
 
     #[test]
     fn considers_alignment() {
-	let input = "\0\0\0\0\u{4}\0\0\0";
-	let parser = Parser::new(&input.as_bytes());
-	let (_, x) = parser.parse_int32(&input[1..].as_bytes()).unwrap();
-	assert_eq!(x, 4);
+        let input = "\0\0\0\0\u{4}\0\0\0";
+        let parser = Parser::new(&input.as_bytes());
+        let (_, x) = parser.parse_int32(&input[1..].as_bytes()).unwrap();
+        assert_eq!(x, 4);
     }
 
     #[test]
     fn does_not_parse_incomplete_types() {
-	let inputs = ["\u{2}aa", "\u{3}(ii", "\u{3}ii)"];
-	for input in inputs.iter() {
-	    let parser = Parser::new(&input.as_bytes());
-	    let output = parser.parse_signature(&input.as_bytes());
-	    dbg!(&output);
-	    assert!(output.is_err())
-	}
+        let inputs = ["\u{2}aa", "\u{3}(ii", "\u{3}ii)"];
+        for input in inputs.iter() {
+            let parser = Parser::new(&input.as_bytes());
+            let output = parser.parse_signature(&input.as_bytes());
+            dbg!(&output);
+            assert!(output.is_err())
+        }
     }
 
     fn make_header() -> (&'static str, MessageHeader<'static>) {
-	let input = "l\u{1}\u{1}\u{1}\u{0}\u{0}\u{0}\u{0}\u{7}\u{0}\u{0}\u{0}\u{1}\u{0}\u{0}\u{0}\u{1}o\0\0\u{3}\u{0}\u{0}\u{0}abc\0\0\0\0\0";
-	let exp = MessageHeader {
-	    endianness: Endian::Little,
-	    kind: MessageType::MethodCall,
-	    flags: HeaderFlags(0x01),
-	    proto_version: MajorProtoVersion::V1,
-	    len: 0,
-	    serial: Serial(7),
-	    fields: HeaderFields {
-		path: Some("abc"),
-		..Default::default()
-	    }
-	};
-	(input, exp)
+        let input = "l\u{1}\u{1}\u{1}\u{0}\u{0}\u{0}\u{0}\u{7}\u{0}\u{0}\u{0}\u{1}\u{0}\u{0}\u{0}\u{1}o\0\0\u{3}\u{0}\u{0}\u{0}abc\0\0\0\0\0";
+        let exp = MessageHeader {
+            endianness: Endian::Little,
+            kind: MessageType::MethodCall,
+            flags: HeaderFlags(0x01),
+            proto_version: MajorProtoVersion::V1,
+            len: 0,
+            serial: Serial(7),
+            fields: HeaderFields {
+                path: Some("abc"),
+                ..Default::default()
+            },
+        };
+        (input, exp)
     }
 
     #[test]
     fn parses_message_headers() {
-	let (input, exp) = make_header();
-	let mut parser = Parser::new(&input.as_bytes());
-	let (_, output) = parser.parse_header(input.as_bytes()).unwrap();
-	assert_eq!(output, exp);
+        let (input, exp) = make_header();
+        let mut parser = Parser::new(&input.as_bytes());
+        let (_, output) = parser.parse_header(input.as_bytes()).unwrap();
+        assert_eq!(output, exp);
     }
 
     #[test]
     fn output_matches_input() {
-	let (input, _) = make_header();
-	let mut parser = Parser::new(&input.as_bytes());
-	let (_, output) = parser.parse_header(input.as_bytes()).unwrap();
-	let msg = Message {
-	    header: output,
-	    body: vec![]
-	};
-	let mut buf = vec![];
+        let (input, _) = make_header();
+        let mut parser = Parser::new(&input.as_bytes());
+        let (_, output) = parser.parse_header(input.as_bytes()).unwrap();
+        let msg = Message {
+            header: output,
+            body: vec![],
+        };
+        let mut buf = vec![];
 
-	crate::proto::encode::write(&mut buf, msg).unwrap();
-	assert_eq!(input.as_bytes(), &buf);
+        crate::proto::encode::write(&mut buf, msg).unwrap();
+        assert_eq!(input.as_bytes(), &buf);
     }
 }
