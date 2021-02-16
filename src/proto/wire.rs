@@ -74,8 +74,8 @@ pub struct MessageHeader<'i> {
 }
 
 pub struct Message<'i> {
-    header: MessageHeader<'i>,
-    body: Vec<Data<'i>>
+    pub header: MessageHeader<'i>,
+    pub body: Vec<Data<'i>>
 }
 
 impl<'i> Message<'i> {

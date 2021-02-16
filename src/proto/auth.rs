@@ -5,7 +5,7 @@ use nom::{
     branch::alt,
     sequence::tuple
 };
-use std::io::{Read, BufRead, Write};
+use std::io::{BufRead, Write};
 
 enum Mechanism {
     External,

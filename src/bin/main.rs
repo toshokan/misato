@@ -1,5 +1,6 @@
 // use libc::sockaddr_un;
-use std::io::{Result, Error, ErrorKind};
+use std::io::Result;
+use std::io::BufRead;
 // use std::os::unix::net::UnixStream;
 
 
@@ -58,6 +59,22 @@ fn main() -> Result<()> {
     // w.write(b"BEGIN\r\n")?;
     // reader.read_line(&mut buf)?;
     // eprintln!("{:?}", buf);
+    let stdin = std::io::stdin();
+    let stdin = stdin.lock();
+
+    for line in stdin.lines() {
+	if let Ok(line) = line {
+	    let mut parser = misato::proto::wire::Parser::new(&line.as_bytes());
+	    let (_, header) = parser.parse_header(&line.as_bytes()).unwrap();
+	    let msg = misato::proto::wire::Message {
+		header,
+		body: vec![]
+	    };
+	    misato::proto::encode::write(std::io::stdout(), msg)
+		.unwrap();
+	}
+	
+    }
     
     Ok(())
 }
