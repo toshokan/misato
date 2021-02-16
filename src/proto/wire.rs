@@ -458,7 +458,7 @@ mod test {
     }
 
     #[test]
-    fn parses_compex_arrays() {
+    fn parses_complex_arrays() {
 	use Type::*;
 	
 	let input = "\u{3}aay";
@@ -469,8 +469,6 @@ mod test {
 
     #[test]
     fn parses_strings() {
-	use Type::*;
-	
 	let input = "\u{3}\0\0\0abc\0";
 	let parser = Parser::new(&input.as_bytes());
 	let (_, x) = parser.parse_string(&input.as_bytes()).unwrap();
@@ -479,8 +477,6 @@ mod test {
 
     #[test]
     fn considers_alignment() {
-	use Type::*;
-	
 	let input = "\0\0\0\0\u{4}\0\0\0";
 	let parser = Parser::new(&input.as_bytes());
 	let (_, x) = parser.parse_int32(&input[1..].as_bytes()).unwrap();
