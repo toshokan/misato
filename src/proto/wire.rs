@@ -1,7 +1,7 @@
 use nom::IResult;
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take},
+    bytes::streaming::{tag, take},
     combinator::map,
     number::Endianness,
 };
@@ -22,7 +22,7 @@ impl Endian {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MessageType {
     Invalid,
     MethodCall,
@@ -31,15 +31,15 @@ pub enum MessageType {
     Signal,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MajorProtoVersion {
     V1,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct HeaderFlags(pub u8);
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Serial(pub u32);
 
 impl Serial {
@@ -48,7 +48,7 @@ impl Serial {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct HeaderFields<'i> {
     pub path: Option<&'i str>,
     pub interface: Option<&'i str>,
@@ -61,7 +61,7 @@ pub struct HeaderFields<'i> {
     pub unix_fds: Option<u32>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MessageHeader<'i> {
     pub endianness: Endian,
     pub kind: MessageType,
@@ -78,8 +78,8 @@ pub struct Message<'i> {
 }
 
 impl<'i> Message<'i> {
-    pub fn into_parts(self) -> (MessageHeader<'i>, Vec<Data<'i>>) {
-        (self.header, self.body)
+    pub fn into_parts(&self) -> (&MessageHeader<'i>, &Vec<Data<'i>>) {
+        (&self.header, &self.body)
     }
 }
 
@@ -175,7 +175,7 @@ macro_rules! num_parser {
 	($(($parser_name:ident, $alignment:expr, $parse_fn:expr, $ret:ty)),*) => {
 	    $(
 		pub fn $parser_name(&self, input: &'i [u8]) -> IResult<&'i [u8], $ret> {
-		    use nom::number::complete::*;
+		    use nom::number::streaming::*;
 
 		    let (input, _) = self.align_at(input, $alignment)?;
 		    $parse_fn(self.endian)(input)
@@ -315,7 +315,7 @@ impl<'i> Parser<'i> {
     ];
 
     pub fn parse_string(&self, input: &'i [u8]) -> IResult<&'i [u8], &'i str> {
-        use nom::character::complete::char;
+        use nom::character::streaming::char;
         use nom::sequence::tuple;
 
         let (input, len) = self.parse_uint32(input)?;
@@ -370,12 +370,12 @@ impl<'i> Parser<'i> {
 
     pub fn parse_signature(&self, input: &'i [u8]) -> IResult<&'i [u8], Vec<Type>> {
         use nom::combinator::all_consuming;
+        use nom::combinator::complete;
         use nom::multi::many0;
 
         let (input, len) = self.parse_byte(input)?;
         let (input, bytes) = take(len)(input)?;
-        let (_, signature) = all_consuming(many0(|i| self.parse_ty(i)))(bytes)?;
-
+        let (_, signature) = all_consuming(many0(complete(|i| self.parse_ty(i))))(bytes)?;
         Ok((input, signature))
     }
 
@@ -546,7 +546,7 @@ mod test {
         };
         let mut buf = vec![];
 
-        crate::proto::encode::write(&mut buf, msg).unwrap();
+        crate::proto::encode::write(&mut buf, &msg).unwrap();
         assert_eq!(input.as_bytes(), &buf);
     }
 }
