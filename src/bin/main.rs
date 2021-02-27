@@ -68,7 +68,7 @@ fn main() -> Result<()> {
                 header,
                 body: vec![],
             };
-            misato::proto::encode::write(std::io::stdout(), msg).unwrap();
+            misato::proto::encode::write(std::io::stdout(), &msg).unwrap();
         }
     }
 

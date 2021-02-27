@@ -46,7 +46,7 @@ impl OutputBuf {
         Self { buf }
     }
 
-    fn write_header(&mut self, header: MessageHeader<'_>, body_len: u32) {
+    fn write_header(&mut self, header: &MessageHeader<'_>, body_len: u32) {
         fn endianness_as_byte(e: Endian) -> u8 {
             match e {
                 Endian::Big => b'B',
@@ -253,12 +253,12 @@ impl<W: Write> BufOutputStream<W> {
     }
 }
 
-pub fn write(os: impl Write, message: Message<'_>) -> std::io::Result<()> {
+pub fn write(os: impl Write, message: &Message<'_>) -> std::io::Result<()> {
     let mut os = BufOutputStream::new(os);
 
-    let (header, body) = message.into_parts();
+    let (header, body) = &message.into_parts();
 
-    for data in body {
+    for data in *body {
         os.body_buf.write_data(&data);
     }
 
